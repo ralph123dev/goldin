@@ -16,14 +16,17 @@ const Chat: React.FC<ChatProps> = ({ userName }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Récupérer le pays de l'utilisateur
     const getUserCountry = async () => {
-      const countryInfo = await getUserCountryInfo();
-      setUserCountry(countryInfo.country);
+      try {
+        const countryInfo = await getUserCountryInfo();
+        setUserCountry(countryInfo.country);
+      } catch (error) {
+        console.error("Could not get user country", error);
+        setUserCountry('Unknown');
+      }
     };
     getUserCountry();
 
-    // S'abonner aux messages
     const unsubscribe = subscribeToMessages((fetchedMessages) => {
       setMessages(fetchedMessages);
     });
@@ -55,29 +58,34 @@ const Chat: React.FC<ChatProps> = ({ userName }) => {
   };
 
   const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('fr-FR', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
+    return date.toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
 
   return (
+    // CHANGEMENT 1: h-full -> h-screen pour occuper toute la hauteur de l'écran.
+    // Ajout de bg-transparent pour s'assurer que l'image de fond est visible partout.
     <div
-      className="flex flex-col h-full"
+      className="flex flex-col h-screen bg-transparent"
       style={{
         backgroundImage: 'url(/bg.png)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
+        backgroundAttachment: 'fixed', // Empêche l'image de fond de défiler
       }}
     >
-      <div className="flex items-center p-4 border-b border-gray-200">
+      {/* En-tête du chat (inchangé) */}
+      <div className="flex-shrink-0 flex items-center p-4 border-b border-gray-200/50 bg-white/10 backdrop-blur-sm">
         <MessageCircle className="text-yellow-600 mr-2" size={24} />
         <h2 className="text-2xl font-bold text-gray-800">Chat Global</h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 max-h-96">
+      {/* CHANGEMENT 2: Suppression de max-h-96. flex-1 permet à cette div de prendre tout l'espace restant. */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="flex flex-col items-center justify-center h-full text-center">
             <MessageCircle className="mx-auto text-gray-400 mb-4" size={48} />
             <p className="text-gray-500">Aucun message pour le moment</p>
             <p className="text-gray-400 text-sm">Soyez le premier à écrire !</p>
@@ -86,10 +94,12 @@ const Chat: React.FC<ChatProps> = ({ userName }) => {
           messages.map((message) => (
             <div
               key={message.id}
-              className={`flex ${message.userName === userName ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${
+                message.userName === userName ? 'justify-end' : 'justify-start'
+              }`}
             >
               <div
-                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg shadow-md ${
                   message.userName === userName
                     ? 'bg-gradient-to-r from-yellow-500 to-yellow-600 text-white'
                     : 'bg-white border border-gray-200 text-gray-800'
@@ -100,10 +110,14 @@ const Chat: React.FC<ChatProps> = ({ userName }) => {
                     {message.userName} • {message.country}
                   </p>
                 )}
-                <p className="text-sm">{message.content}</p>
-                <p className={`text-xs mt-1 ${
-                  message.userName === userName ? 'text-yellow-100' : 'text-gray-500'
-                }`}>
+                <p className="text-sm break-words">{message.content}</p>
+                <p
+                  className={`text-xs text-right mt-1 ${
+                    message.userName === userName
+                      ? 'text-yellow-100'
+                      : 'text-gray-500'
+                  }`}
+                >
                   {formatTime(message.timestamp)}
                 </p>
               </div>
@@ -113,7 +127,11 @@ const Chat: React.FC<ChatProps> = ({ userName }) => {
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200">
+      {/* Le formulaire est maintenant naturellement poussé en bas par la div flex-1 */}
+      <form
+        onSubmit={handleSendMessage}
+        className="flex-shrink-0 p-4 border-t border-gray-200/50 bg-white/10 backdrop-blur-sm"
+      >
         <div className="flex space-x-2">
           <input
             type="text"
