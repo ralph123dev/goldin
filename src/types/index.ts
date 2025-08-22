@@ -9,9 +9,11 @@ export interface User {
 export interface Message {
   id: string;
   userName: string;
-  content: string;
+  content?: string;
   timestamp: Date;
   country: string;
+  type?: string;      // Ajouté pour supporter les types de message (text, image, video, audio)
+  fileURL?: string;   // Ajouté pour les fichiers (image, video, audio)
 }
 
 export interface VerifyData {

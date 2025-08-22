@@ -1,115 +1,161 @@
-import { 
-  collection, 
-  addDoc, 
-  getDocs, 
-  query, 
-  orderBy, 
-  onSnapshot, 
-  deleteDoc, 
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  query,
+  orderBy,
+  onSnapshot,
+  getDocs,
+  deleteDoc,
   doc,
-  serverTimestamp 
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { User, Message, VerifyData } from '../types';
+import { Message, User, VerifyData } from '../types';
 
-// Service pour les utilisateurs
+const messagesCollectionRef = collection(db, 'messages');
+const usersCollectionRef = collection(db, 'users');
+const verifyCollectionRef = collection(db, 'verify');
+
+// NOUVEAU : Fonction dédiée uniquement aux messages texte
+export const addTextMessage = async (userName: string, country: string, content: string) => {
+  await addDoc(messagesCollectionRef, {
+    userName,
+    country,
+    content,
+    type: 'text', // On s'assure que le type est bien défini
+    timestamp: serverTimestamp(),
+  });
+};
+
+// NOUVEAU : Fonction dédiée uniquement aux messages avec fichier
+export const addFileMessage = async (
+  userName: string,
+  country: string,
+  type: 'image' | 'video' | 'audio',
+  fileURL: string
+) => {
+  await addDoc(messagesCollectionRef, {
+    userName,
+    country,
+    fileURL,
+    type, // Le type est passé en argument
+    timestamp: serverTimestamp(),
+  });
+};
+
+// Ajout de la fonction addUser pour l'inscription
 export const addUser = async (name: string, country: string, flag: string) => {
   try {
-    const docRef = await addDoc(collection(db, 'users'), {
+    const usersRef = collection(db, 'users');
+    const userData = {
       name,
       country,
       flag,
-      joinedAt: serverTimestamp()
-    });
-    return docRef.id;
+      joinedAt: serverTimestamp(),
+    };
+
+    return await addDoc(usersRef, userData);
   } catch (error) {
-    console.error('Erreur lors de l\'ajout de l\'utilisateur:', error);
+    console.error('Error adding user:', error);
     throw error;
   }
 };
 
-export const getUsers = async () => {
+// Nouvelle fonction pour récupérer la liste des utilisateurs
+export const getUsers = async (): Promise<User[]> => {
   try {
-    const q = query(collection(db, 'users'), orderBy('joinedAt', 'desc'));
+    const usersRef = collection(db, 'users');
+    const q = query(usersRef, orderBy('joinedAt', 'desc'));
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      joinedAt: doc.data().joinedAt?.toDate() || new Date()
-    })) as User[];
-  } catch (error) {
-    console.error('Erreur lors de la récupération des utilisateurs:', error);
-    throw error;
-  }
-};
 
-// Service pour les messages
-export const addMessage = async (userName: string, content: string, country: string) => {
-  try {
-    const docRef = await addDoc(collection(db, 'messages'), {
-      userName,
-      content,
-      country,
-      timestamp: serverTimestamp()
+    return querySnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        name: data.name,
+        country: data.country,
+        flag: data.flag,
+        joinedAt: data.joinedAt?.toDate ? data.joinedAt.toDate() : new Date(),
+      };
     });
-    return docRef.id;
   } catch (error) {
-    console.error('Erreur lors de l\'ajout du message:', error);
+    console.error('Error fetching users:', error);
     throw error;
   }
 };
 
 export const subscribeToMessages = (callback: (messages: Message[]) => void) => {
-  const q = query(collection(db, 'messages'), orderBy('timestamp', 'asc'));
-  
-  return onSnapshot(q, (querySnapshot) => {
-    const messages = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data(),
-      timestamp: doc.data().timestamp?.toDate() || new Date()
-    })) as Message[];
+  const q = query(messagesCollectionRef, orderBy('timestamp', 'asc'));
+
+  const unsubscribe = onSnapshot(q, (querySnapshot) => {
+    const messages: Message[] = querySnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        userName: data.userName,
+        country: data.country,
+        content: data.content, // Peut être undefined pour les fichiers
+        type: data.type,
+        fileURL: data.fileURL,
+        timestamp: data.timestamp?.toDate ? data.timestamp.toDate() : new Date(),
+      };
+    });
     callback(messages);
   });
+
+  return unsubscribe;
 };
 
-export const deleteMessage = async (messageId: string) => {
+// Ajoute une donnée de vérification
+export const addVerifyData = async (data: { name: string; country: string; phoneNumber: string }) => {
   try {
-    await deleteDoc(doc(db, 'messages', messageId));
+    const verifyRef = collection(db, 'verify');
+    const docData = {
+      ...data,
+      timestamp: serverTimestamp(),
+    };
+    return await addDoc(verifyRef, docData);
   } catch (error) {
-    console.error('Erreur lors de la suppression du message:', error);
+    console.error('Error adding verify data:', error);
     throw error;
   }
 };
 
-// Service pour les données de vérification
-export const addVerifyData = async (data: Omit<VerifyData, 'id'>) => {
-  try {
-    const docRef = await addDoc(collection(db, 'verify'), data);
-    return docRef.id;
-  } catch (error) {
-    console.error('Erreur lors de l\'ajout des données de vérification:', error);
-    throw error;
-  }
-};
-
+// Récupère toutes les données de vérification
 export const getVerifyData = async () => {
   try {
-    const querySnapshot = await getDocs(collection(db, 'verify'));
-    return querySnapshot.docs.map(doc => ({
+    const verifyRef = collection(db, 'verify');
+    const snapshot = await getDocs(verifyRef);
+    return snapshot.docs.map((doc) => ({
       id: doc.id,
-      ...doc.data()
+      ...doc.data(),
     })) as VerifyData[];
   } catch (error) {
-    console.error('Erreur lors de la récupération des données de vérification:', error);
+    console.error('Error getting verify data:', error);
     throw error;
   }
 };
 
-export const deleteVerifyData = async (dataId: string) => {
+// Supprime une donnée de vérification par id
+export const deleteVerifyData = async (id: string) => {
   try {
-    await deleteDoc(doc(db, 'verify', dataId));
+    const verifyRef = doc(db, 'verify', id);
+    await deleteDoc(verifyRef);
   } catch (error) {
-    console.error('Erreur lors de la suppression des données de vérification:', error);
+    console.error('Error deleting verify data:', error);
     throw error;
   }
 };
+
+// Supprime un message par son identifiant
+export const deleteMessage = async (messageId: string): Promise<void> => {
+  try {
+    const messageRef = doc(db, 'messages', messageId);
+    await deleteDoc(messageRef);
+  } catch (error) {
+    console.error('Error deleting message:', error);
+    throw error;
+  }
+};
+
+// Note: L'ancienne fonction générique `addMessage` a été supprimée et remplacée par les deux ci-dessus.

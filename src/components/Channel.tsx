@@ -34,7 +34,7 @@ const Channel: React.FC = () => {
     <div className="p-4">
       <div className="flex items-center mb-6">
         <Users className="text-yellow-600 mr-2" size={24} />
-        <h2 className="text-2xl font-bold text-gray-800">Canal des Utilisateurs</h2>
+        <h2 className="text-2xl font-bold text-gray-800">Global Chat</h2>
       </div>
 
       {users.length === 0 ? (

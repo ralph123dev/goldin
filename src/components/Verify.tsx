@@ -22,12 +22,15 @@ const Verify: React.FC = () => {
       const data = await getVerifyData();
       setVerifyDataList(data);
       
-      // Ouvrir le popup si aucune donnée n'existe
+      // Toujours ouvrir le popup si aucune donnée n'existe
       if (data.length === 0) {
         setShowPopup(true);
       }
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error);
+      // En cas d'erreur, initialiser avec un tableau vide
+      setVerifyDataList([]);
+      setShowPopup(true);
     }
   };
 
